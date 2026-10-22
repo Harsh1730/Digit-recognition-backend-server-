@@ -6,10 +6,18 @@ from PIL import Image
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Suppress noisy TensorFlow logs
+# Suppress noisy TensorFlow logs and disable heavy oneDNN buffers on low-memory servers
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
 from tensorflow import keras
+
+# Limit CPU thread pools to prevent CPU contention on cloud instances
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+except Exception:
+    pass
 
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +29,11 @@ try:
     print("Model loaded successfully!")
     print("Input shape:", model.input_shape)
     print("Output shape:", model.output_shape)
+    
+    # Pre-compile computation graph once during boot so user requests don't hit 30s timeout
+    dummy_input = np.zeros((1, 28, 28, 1), dtype=np.float32)
+    _ = model(dummy_input, training=False)
+    print("Model warmup complete! Ready for low-latency inference.")
 except Exception as e:
     print(f"Error loading model: {e}")
     model = None
