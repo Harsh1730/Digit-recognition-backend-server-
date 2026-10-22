@@ -97,6 +97,14 @@ def pil_to_base64(img):
     img.save(buffered, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffered.getvalue()).decode("utf-8")
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "message": "Digit Recognition CNN Model API is running!",
+        "health": "/api/health",
+        "predict": "/api/predict"
+    })
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({
